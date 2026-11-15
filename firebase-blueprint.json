@@ -1,0 +1,203 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public profile metadata for an authenticated WASELHA user without PII",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "role": { "type": "string", "enum": ["customer", "driver", "shop", "super_admin"] },
+        "status": { "type": "string", "enum": ["active", "suspended"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "role", "status", "createdAt", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Isolated PII document for user phone number and email",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "phone": { "type": "string", "minLength": 7, "maxLength": 20 },
+        "email": { "type": "string", "maxLength": 120 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "phone", "updatedAt"]
+    },
+    "DeliveryZone": {
+      "title": "DeliveryZone",
+      "description": "Coverage area and delivery pricing rules controlled by Super Admin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "city": { "type": "string", "minLength": 2, "maxLength": 60 },
+        "centerLat": { "type": "number" },
+        "centerLng": { "type": "number" },
+        "radiusKm": { "type": "number" },
+        "pricingMode": { "type": "string", "enum": ["fixed", "distance"] },
+        "fixedFeeIqd": { "type": "number" },
+        "baseFeeIqd": { "type": "number" },
+        "perKmFeeIqd": { "type": "number" },
+        "isCovered": { "type": "boolean" },
+        "isActive": { "type": "boolean" },
+        "notes": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "name",
+        "city",
+        "centerLat",
+        "centerLng",
+        "radiusKm",
+        "pricingMode",
+        "fixedFeeIqd",
+        "baseFeeIqd",
+        "perKmFeeIqd",
+        "isCovered",
+        "isActive",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ZoneRouteRate": {
+      "title": "ZoneRouteRate",
+      "description": "Inter-zone delivery fee matrix entry controlled by Super Admin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fromZoneId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "toZoneId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fromZoneName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "toZoneName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "feeIqd": { "type": "number" },
+        "bidirectional": { "type": "boolean" },
+        "isActive": { "type": "boolean" },
+        "notes": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "fromZoneId",
+        "toZoneId",
+        "fromZoneName",
+        "toZoneName",
+        "feeIqd",
+        "bidirectional",
+        "isActive",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Driver": {
+      "title": "Driver",
+      "description": "Delivery driver operational profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "vehicleType": { "type": "string", "enum": ["motorcycle", "car", "bicycle"] },
+        "plateNumber": { "type": "string", "maxLength": 30 },
+        "isOnline": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["active", "suspended"] },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "name", "vehicleType", "isOnline", "status", "createdAt", "updatedAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Freelance on-demand parcel delivery order with pickup/delivery locations, zone pricing, and 25/75 commission",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "customerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "driverId": { "type": "string", "maxLength": 128 },
+        "pickupZoneId": { "type": "string", "maxLength": 128 },
+        "deliveryZoneId": { "type": "string", "maxLength": 128 },
+        "zoneName": { "type": "string", "maxLength": 120 },
+        "senderName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "itemName": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "pickupAddress": { "type": "string", "minLength": 2, "maxLength": 240 },
+        "deliveryAddress": { "type": "string", "minLength": 2, "maxLength": 240 },
+        "pickupLat": { "type": "number" },
+        "pickupLng": { "type": "number" },
+        "deliveryLat": { "type": "number" },
+        "deliveryLng": { "type": "number" },
+        "distanceKm": { "type": "number" },
+        "deliveryFeeIqd": { "type": "number" },
+        "platformFeeIqd": { "type": "number" },
+        "driverNetIqd": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "picked_up", "on_the_way", "delivered", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "customerId", "senderName", "itemName", "pickupAddress", "deliveryAddress", "pickupLat", "pickupLng", "deliveryLat", "deliveryLng", "distanceKm", "deliveryFeeIqd", "platformFeeIqd", "driverNetIqd", "status", "createdAt", "updatedAt"]
+    },
+    "PricingSettings": {
+      "title": "PricingSettings",
+      "description": "Global platform delivery pricing, inter-zone, long-distance, and commission configuration managed by Super Admin",
+      "type": "object",
+      "properties": {
+        "baseFeeIqd": { "type": "number" },
+        "perKmFeeIqd": { "type": "number" },
+        "minFeeIqd": { "type": "number" },
+        "maxFeeIqd": { "type": "number" },
+        "interZoneFeeIqd": { "type": "number" },
+        "longDistanceThresholdKm": { "type": "number" },
+        "longDistancePerKmFeeIqd": { "type": "number" },
+        "platformCommissionPct": { "type": "number" },
+        "outsideZonesAllowed": { "type": "boolean" },
+        "outsideZoneSurchargeIqd": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["baseFeeIqd", "perKmFeeIqd", "minFeeIqd", "maxFeeIqd", "interZoneFeeIqd", "longDistanceThresholdKm", "longDistancePerKmFeeIqd", "platformCommissionPct", "outsideZonesAllowed", "outsideZoneSurchargeIqd", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Public non-PII user profiles"
+    },
+    "/users/{userId}/private/info": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Private PII user info restricted to owner or admin"
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Admin role lookup documents"
+    },
+    "/zones/{zoneId}": {
+      "schema": { "$ref": "#/entities/DeliveryZone" },
+      "description": "Coverage zones and per-zone pricing managed by Super Admin"
+    },
+    "/zoneRoutes/{routeId}": {
+      "schema": { "$ref": "#/entities/ZoneRouteRate" },
+      "description": "Inter-zone delivery route pricing matrix managed by Super Admin"
+    },
+    "/drivers/{driverId}": {
+      "schema": { "$ref": "#/entities/Driver" },
+      "description": "Registered delivery drivers"
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Freelance parcel delivery orders"
+    },
+    "/orders/{orderId}/private/contact": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Order sender/recipient phone PII restricted to owner, assigned driver, or admin"
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/PricingSettings" },
+      "description": "Global delivery pricing and platform commission settings"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "وصلها - WASELHA",
+  "description": "منصة وصلها للتوصيل السريع في العراق - تصفح المطاعم والمحلات، اطلب التوصيل وتتبع المندوب لحظياً على خرائط جوجل",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

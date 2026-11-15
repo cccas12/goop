@@ -1,0 +1,332 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Global Hardened Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerified() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isVerified() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'atoott515@gmail.com'
+      );
+    }
+
+    // 3. Entity Validation Blueprints
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'role', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'role', 'status', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100
+        && data.role in ['customer', 'driver', 'shop', 'super_admin']
+        && data.status in ['active', 'suspended']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPrivateContact(data) {
+      return data.keys().hasAll(['uid', 'phone', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'phone', 'email', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.phone is string && data.phone.size() >= 7 && data.phone.size() <= 20
+        && (!('email' in data) || (data.email is string && data.email.size() <= 120))
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidDeliveryZone(data) {
+      return data.keys().hasAll(['id', 'name', 'city', 'centerLat', 'centerLng', 'radiusKm', 'pricingMode', 'fixedFeeIqd', 'baseFeeIqd', 'perKmFeeIqd', 'isCovered', 'isActive', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'name', 'city', 'centerLat', 'centerLng', 'radiusKm', 'pricingMode', 'fixedFeeIqd', 'baseFeeIqd', 'perKmFeeIqd', 'isCovered', 'isActive', 'notes', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 100
+        && data.city is string && data.city.size() >= 2 && data.city.size() <= 60
+        && data.centerLat is number && data.centerLat >= -90 && data.centerLat <= 90
+        && data.centerLng is number && data.centerLng >= -180 && data.centerLng <= 180
+        && data.radiusKm is number && data.radiusKm > 0 && data.radiusKm <= 200
+        && data.pricingMode in ['fixed', 'distance']
+        && data.fixedFeeIqd is number && data.fixedFeeIqd >= 0 && data.fixedFeeIqd <= 500000
+        && data.baseFeeIqd is number && data.baseFeeIqd >= 0 && data.baseFeeIqd <= 500000
+        && data.perKmFeeIqd is number && data.perKmFeeIqd >= 0 && data.perKmFeeIqd <= 50000
+        && data.isCovered is bool
+        && data.isActive is bool
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 300))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidZoneRouteRate(data) {
+      return data.keys().hasAll(['id', 'fromZoneId', 'toZoneId', 'fromZoneName', 'toZoneName', 'feeIqd', 'bidirectional', 'isActive', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'fromZoneId', 'toZoneId', 'fromZoneName', 'toZoneName', 'feeIqd', 'bidirectional', 'isActive', 'notes', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.fromZoneId)
+        && isValidId(data.toZoneId)
+        && data.fromZoneName is string && data.fromZoneName.size() >= 2 && data.fromZoneName.size() <= 100
+        && data.toZoneName is string && data.toZoneName.size() >= 2 && data.toZoneName.size() <= 100
+        && data.feeIqd is number && data.feeIqd >= 0 && data.feeIqd <= 500000
+        && data.bidirectional is bool
+        && data.isActive is bool
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 300))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidDriver(data) {
+      return data.keys().hasAll(['id', 'ownerId', 'name', 'vehicleType', 'isOnline', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'name', 'vehicleType', 'plateNumber', 'isOnline', 'status', 'lat', 'lng', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.ownerId)
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 100
+        && data.vehicleType in ['motorcycle', 'car', 'bicycle']
+        && (!('plateNumber' in data) || (data.plateNumber is string && data.plateNumber.size() <= 30))
+        && data.isOnline is bool
+        && data.status in ['active', 'suspended']
+        && (!('lat' in data) || (data.lat is number && data.lat >= -90 && data.lat <= 90))
+        && (!('lng' in data) || (data.lng is number && data.lng >= -180 && data.lng <= 180))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['id', 'customerId', 'senderName', 'itemName', 'pickupAddress', 'deliveryAddress', 'pickupLat', 'pickupLng', 'deliveryLat', 'deliveryLng', 'distanceKm', 'deliveryFeeIqd', 'platformFeeIqd', 'driverNetIqd', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'customerId', 'driverId', 'pickupZoneId', 'deliveryZoneId', 'zoneName', 'senderName', 'itemName', 'pickupAddress', 'deliveryAddress', 'pickupLat', 'pickupLng', 'deliveryLat', 'deliveryLng', 'distanceKm', 'deliveryFeeIqd', 'platformFeeIqd', 'driverNetIqd', 'status', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.customerId)
+        && (!('driverId' in data) || data.driverId == '' || isValidId(data.driverId))
+        && (!('pickupZoneId' in data) || data.pickupZoneId == '' || isValidId(data.pickupZoneId))
+        && (!('deliveryZoneId' in data) || data.deliveryZoneId == '' || isValidId(data.deliveryZoneId))
+        && (!('zoneName' in data) || (data.zoneName is string && data.zoneName.size() <= 120))
+        && data.senderName is string && data.senderName.size() >= 2 && data.senderName.size() <= 100
+        && data.itemName is string && data.itemName.size() >= 2 && data.itemName.size() <= 160
+        && data.pickupAddress is string && data.pickupAddress.size() >= 2 && data.pickupAddress.size() <= 240
+        && data.deliveryAddress is string && data.deliveryAddress.size() >= 2 && data.deliveryAddress.size() <= 240
+        && data.pickupLat is number && data.pickupLat >= -90 && data.pickupLat <= 90
+        && data.pickupLng is number && data.pickupLng >= -180 && data.pickupLng <= 180
+        && data.deliveryLat is number && data.deliveryLat >= -90 && data.deliveryLat <= 90
+        && data.deliveryLng is number && data.deliveryLng >= -180 && data.deliveryLng <= 180
+        && data.distanceKm is number && data.distanceKm >= 0 && data.distanceKm <= 250
+        && data.deliveryFeeIqd is number && data.deliveryFeeIqd >= 0 && data.deliveryFeeIqd <= 500000
+        && data.platformFeeIqd is number && data.platformFeeIqd >= 0
+        && data.driverNetIqd is number && data.driverNetIqd >= 0
+        && data.status in ['pending', 'accepted', 'picked_up', 'on_the_way', 'delivered', 'cancelled']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPricingSettings(data) {
+      return data.keys().hasAll(['baseFeeIqd', 'perKmFeeIqd', 'minFeeIqd', 'maxFeeIqd', 'interZoneFeeIqd', 'longDistanceThresholdKm', 'longDistancePerKmFeeIqd', 'platformCommissionPct', 'outsideZonesAllowed', 'outsideZoneSurchargeIqd', 'updatedAt'])
+        && data.keys().hasOnly(['baseFeeIqd', 'perKmFeeIqd', 'minFeeIqd', 'maxFeeIqd', 'interZoneFeeIqd', 'longDistanceThresholdKm', 'longDistancePerKmFeeIqd', 'platformCommissionPct', 'outsideZonesAllowed', 'outsideZoneSurchargeIqd', 'updatedAt'])
+        && data.baseFeeIqd is number && data.baseFeeIqd >= 0 && data.baseFeeIqd <= 500000
+        && data.perKmFeeIqd is number && data.perKmFeeIqd >= 0 && data.perKmFeeIqd <= 50000
+        && data.minFeeIqd is number && data.minFeeIqd >= 0 && data.minFeeIqd <= data.maxFeeIqd
+        && data.maxFeeIqd is number && data.maxFeeIqd <= 500000
+        && data.interZoneFeeIqd is number && data.interZoneFeeIqd >= 0 && data.interZoneFeeIqd <= 250000
+        && data.longDistanceThresholdKm is number && data.longDistanceThresholdKm >= 0 && data.longDistanceThresholdKm <= 200
+        && data.longDistancePerKmFeeIqd is number && data.longDistancePerKmFeeIqd >= 0 && data.longDistancePerKmFeeIqd <= 50000
+        && data.platformCommissionPct is number && data.platformCommissionPct >= 0 && data.platformCommissionPct <= 50
+        && data.outsideZonesAllowed is bool
+        && data.outsideZoneSurchargeIqd is number && data.outsideZoneSurchargeIqd >= 0 && data.outsideZoneSurchargeIqd <= 250000
+        && data.updatedAt is timestamp;
+    }
+
+    // 4. Connection Health Doc
+    match /test/connection {
+      allow get: if true;
+    }
+
+    // 5. Admins Registry
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create, update, delete: if isValidId(userId) && isAdmin();
+    }
+
+    // 6. Delivery Zones (Admin Controlled)
+    match /zones/{zoneId} {
+      allow get: if isValidId(zoneId);
+      allow list: if resource.data.isActive == true || isAdmin();
+      allow create: if isValidId(zoneId) && isAdmin()
+        && isValidDeliveryZone(incoming())
+        && incoming().id == zoneId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(zoneId) && isAdmin()
+        && isValidDeliveryZone(incoming())
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time;
+      allow delete: if isValidId(zoneId) && isAdmin();
+    }
+
+    // 7. Zone-to-Zone Route Rates (Admin Controlled)
+    match /zoneRoutes/{routeId} {
+      allow get: if isValidId(routeId);
+      allow list: if resource.data.isActive == true || isAdmin();
+      allow create: if isValidId(routeId) && isAdmin()
+        && isValidZoneRouteRate(incoming())
+        && incoming().id == routeId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/zones/$(incoming().fromZoneId))
+        && exists(/databases/$(database)/documents/zones/$(incoming().toZoneId));
+      allow update: if isValidId(routeId) && isAdmin()
+        && isValidZoneRouteRate(incoming())
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time;
+      allow delete: if isValidId(routeId) && isAdmin();
+    }
+
+    // 8. Users & Isolated PII
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin() || (isVerified() && resource.data.uid == request.auth.uid);
+      allow create: if isValidId(userId) && isOwner(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == request.auth.uid
+        && incoming().role == 'customer'
+        && incoming().status == 'active'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) && isVerified() && isValidUserProfile(incoming()) && (
+        isAdmin() ||
+        (
+          isOwner(userId)
+          && incoming().uid == existing().uid
+          && incoming().createdAt == existing().createdAt
+          && incoming().role == existing().role
+          && incoming().status == existing().status
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt'])
+        )
+      );
+      allow delete: if isValidId(userId) && isAdmin();
+
+      match /private/info {
+        allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+        allow create, update: if isValidId(userId) && (isOwner(userId) || isAdmin())
+          && isValidPrivateContact(incoming())
+          && incoming().uid == userId
+          && incoming().updatedAt == request.time;
+        allow delete: if isValidId(userId) && isAdmin();
+      }
+    }
+
+    // 9. Drivers
+    match /drivers/{driverId} {
+      allow get: if isValidId(driverId) && (isAdmin() || (isVerified() && existing().ownerId == request.auth.uid));
+      allow list: if isAdmin() || (isVerified() && resource.data.ownerId == request.auth.uid);
+      allow create: if isValidId(driverId) && isVerified()
+        && isValidDriver(incoming())
+        && incoming().id == driverId
+        && incoming().ownerId == request.auth.uid
+        && incoming().status == 'active'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(driverId) && isVerified() && isValidDriver(incoming()) && (
+        isAdmin() ||
+        (
+          existing().ownerId == request.auth.uid
+          && incoming().id == existing().id
+          && incoming().ownerId == existing().ownerId
+          && incoming().status == existing().status
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'vehicleType', 'plateNumber', 'isOnline', 'lat', 'lng', 'updatedAt'])
+        )
+      );
+      allow delete: if isValidId(driverId) && isAdmin();
+    }
+
+    // 10. Freelance Courier Orders & Protected PII
+    match /orders/{orderId} {
+      allow get: if isValidId(orderId) && isVerified() && (
+        isAdmin() ||
+        existing().customerId == request.auth.uid ||
+        existing().driverId == request.auth.uid
+      );
+      allow list: if isVerified() && (
+        isAdmin() ||
+        resource.data.customerId == request.auth.uid ||
+        resource.data.driverId == request.auth.uid ||
+        resource.data.status == 'pending'
+      );
+      allow create: if isValidId(orderId) && isVerified()
+        && isValidOrder(incoming())
+        && incoming().id == orderId
+        && incoming().customerId == request.auth.uid
+        && incoming().status == 'pending'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(orderId) && isVerified() && isValidOrder(incoming()) && (
+        isAdmin() ||
+        (
+          existing().status != 'delivered'
+          && existing().status != 'cancelled'
+          && incoming().id == existing().id
+          && incoming().customerId == existing().customerId
+          && incoming().senderName == existing().senderName
+          && incoming().itemName == existing().itemName
+          && incoming().deliveryFeeIqd == existing().deliveryFeeIqd
+          && incoming().platformFeeIqd == existing().platformFeeIqd
+          && incoming().driverNetIqd == existing().driverNetIqd
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            (existing().status == 'pending' && (!('driverId' in existing()) || existing().driverId == '') && incoming().driverId == request.auth.uid && incoming().status == 'accepted' && incoming().diff(existing()).affectedKeys().hasOnly(['driverId', 'status', 'updatedAt'])) ||
+            (existing().driverId == request.auth.uid && incoming().status in ['picked_up', 'on_the_way', 'delivered'] && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+          )
+        )
+      );
+      allow delete: if isValidId(orderId) && isAdmin();
+
+      match /private/contact {
+        allow get: if isValidId(orderId) && isVerified() && (
+          isAdmin() ||
+          get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid ||
+          get(/databases/$(database)/documents/orders/$(orderId)).data.driverId == request.auth.uid
+        );
+        allow create: if isValidId(orderId) && isVerified()
+          && isValidPrivateContact(incoming())
+          && incoming().uid == request.auth.uid
+          && incoming().updatedAt == request.time
+          && existsAfter(/databases/$(database)/documents/orders/$(orderId));
+        allow update, delete: if isValidId(orderId) && isAdmin();
+      }
+    }
+
+    // 11. Global Delivery Pricing Settings
+    match /settings/{settingId} {
+      allow get: if isValidId(settingId);
+      allow list: if true;
+      allow create, update: if isValidId(settingId) && isAdmin()
+        && isValidPricingSettings(incoming())
+        && incoming().updatedAt == request.time;
+      allow delete: if isValidId(settingId) && isAdmin();
+    }
+  }
+}
